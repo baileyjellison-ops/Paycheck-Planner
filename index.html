@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>PayDay v1.8.7</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">PD</div>
+        <div>
+          <h1>PayDay</h1>
+          <span>v1.8.7</span>
+        </div>
+      </div>
+
+      <nav id="mainNav" class="nav-grid" aria-label="Primary">
+        <button class="nav-btn active" data-page="dashboard" data-title="Dashboard"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
+        <button class="nav-btn" data-page="paychecks" data-title="Paychecks"><span class="nav-icon">$</span><span>Paychecks</span></button>
+        <button class="nav-btn" data-page="bills" data-title="Bills"><span class="nav-icon">▤</span><span>Bills</span></button>
+        <button class="nav-btn" data-page="monthly" data-title="Monthly"><span class="nav-icon">▦</span><span>Monthly</span></button>
+        <button class="nav-btn secondary-nav" data-page="debts" data-title="Debts"><span class="nav-icon">↘</span><span>Debts</span></button>
+        <button class="nav-btn secondary-nav" data-page="goals" data-title="Goals"><span class="nav-icon">◎</span><span>Goals</span></button>
+        <button class="nav-btn secondary-nav" data-page="reports" data-title="Reports"><span class="nav-icon">▥</span><span>Reports</span></button>
+        <button class="nav-btn secondary-nav" data-page="settings" data-title="Settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+        <button id="moreNavBtn" class="nav-btn mobile-more" type="button" aria-haspopup="dialog"><span class="nav-icon">•••</span><span>More</span></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div id="storageStatus" class="status-line">Local storage ready</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-copy">
+          <span class="eyebrow">FINANCIAL CONTROL CENTER</span>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="todayLabel"></p>
+        </div>
+        <div class="topbar-actions">
+          <button id="quickAddBill" class="btn btn-secondary">Add Bill</button>
+          <button id="quickAddPaycheck" class="btn btn-primary">Add Paycheck</button>
+        </div>
+      </header>
+
+      <section id="dashboard" class="page active">
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span>Next Paycheck</span>
+            <strong id="metricNextPaycheck">$0.00</strong>
+            <small id="metricNextPaycheckDate">No paycheck scheduled</small>
+          </article>
+          <article class="metric-card">
+            <span>Upcoming Bills</span>
+            <strong id="metricUpcomingBills">$0.00</strong>
+            <small id="metricUpcomingBillsCount">0 unpaid bills</small>
+          </article>
+          <article class="metric-card">
+            <span>Available After Bills</span>
+            <strong id="metricAvailable">$0.00</strong>
+            <small>Includes required buffers</small>
+          </article>
+          <article class="metric-card">
+            <span>Total Debt</span>
+            <strong id="metricDebt">$0.00</strong>
+            <small id="metricDebtCount">0 active debts</small>
+          </article>
+        </div>
+
+        <div class="panel-grid two-col">
+          <section class="panel">
+            <div class="panel-header">
+              <h3>Upcoming Paycheck Plan</h3>
+            </div>
+            <div id="dashboardPaycheckPlan" class="stack"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h3>Bill Status</h3>
+            </div>
+            <div id="dashboardBillStatus" class="stack"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h3>Waterfall Summary</h3>
+          </div>
+          <div id="waterfallSummary" class="waterfall"></div>
+        </section>
+      </section>
+
+      <section id="paychecks" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Paycheck Schedule</h3>
+            <button class="btn btn-primary" data-open-modal="paycheckModal">Add Paycheck</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Base</th>
+                  <th>Extra</th>
+                  <th>Total</th>
+                  <th>Assigned Bills</th>
+                  <th>Remaining</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="paycheckTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h3>Selected Paycheck Breakdown</h3>
+          </div>
+          <div id="selectedPaycheckBreakdown" class="empty-state">Select a paycheck to see its breakdown.</div>
+        </section>
+      </section>
+
+      <section id="bills" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Bill Management</h3>
+            <div class="inline-actions">
+              <select id="billFilter">
+                <option value="all">All bills</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+              </select>
+              <button class="btn btn-primary" data-open-modal="billModal">Add Bill</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Bill</th>
+                  <th>Amount</th>
+                  <th>Due</th>
+                  <th>Priority</th>
+                  <th>Assigned Check</th>
+                  <th>Paid</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="billTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="monthly" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Monthly Plan</h3>
+            <input id="monthPicker" type="month" />
+          </div>
+          <div id="monthlySummary" class="metric-grid compact"></div>
+          <div id="monthlyPaycheckCards" class="card-list"></div>
+        </div>
+      </section>
+
+      <section id="debts" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Debt Tracker</h3>
+            <button class="btn btn-primary" data-open-modal="debtModal">Add Debt</button>
+          </div>
+          <div id="debtCards" class="card-list"></div>
+        </div>
+      </section>
+
+      <section id="goals" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Savings Goals</h3>
+            <button class="btn btn-primary" data-open-modal="goalModal">Add Goal</button>
+          </div>
+          <div id="goalCards" class="card-list"></div>
+        </div>
+      </section>
+
+      <section id="reports" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Reports</h3>
+            <button id="exportCsvBtn" class="btn btn-secondary">Export Bills CSV</button>
+          </div>
+          <div id="reportCards" class="metric-grid compact"></div>
+          <div class="report-bars">
+            <div>
+              <h4>Bill Categories</h4>
+              <div id="categoryReport"></div>
+            </div>
+            <div>
+              <h4>Priority Allocation</h4>
+              <div id="priorityReport"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Budget Rules</h3>
+          </div>
+          <form id="settingsForm" class="form-grid">
+            <label>
+              Minimum savings buffer per paycheck
+              <input id="settingsSavingsBuffer" type="number" min="0" step="0.01" />
+            </label>
+            <label>
+              Required leftover cash per paycheck
+              <input id="settingsLeftoverCash" type="number" min="0" step="0.01" />
+            </label>
+            <label>
+              Default pay frequency
+              <select id="settingsPayFrequency">
+                <option value="biweekly">Biweekly</option>
+                <option value="weekly">Weekly</option>
+                <option value="semimonthly">Twice monthly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            <label class="checkbox-label">
+              <input id="settingsRentAdvance" type="checkbox" />
+              Plan rent one month in advance
+            </label>
+            <div class="form-actions full-width">
+              <button class="btn btn-primary" type="submit">Save Settings</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Data Management</h3>
+          </div>
+          <div class="button-row">
+            <button id="exportJsonBtn" class="btn btn-secondary">Export Backup</button>
+            <label class="btn btn-secondary file-label">
+              Import Backup
+              <input id="importJsonInput" type="file" accept="application/json" hidden />
+            </label>
+            <button id="loadDemoBtn" class="btn btn-secondary">Load Demo Data</button>
+            <button id="resetDataBtn" class="btn btn-danger">Reset All Data</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="billModal" class="modal">
+    <form method="dialog" id="billForm">
+      <div class="modal-header">
+        <h3 id="billModalTitle">Add Bill</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <input type="hidden" id="billId" />
+      <div class="form-grid">
+        <label>Bill name<input id="billName" required /></label>
+        <label>Amount<input id="billAmount" type="number" min="0" step="0.01" required /></label>
+        <label>Due date<input id="billDueDate" type="date" required /></label>
+        <label>Category<input id="billCategory" placeholder="Housing, Debt, Utility..." /></label>
+        <label>Priority
+          <select id="billPriority">
+            <option value="1">1 - Fixed date / highest</option>
+            <option value="2">2 - Fixed flexible</option>
+            <option value="3">3 - Goal / adjustable</option>
+          </select>
+        </label>
+        <label>Assign to paycheck<select id="billPaycheckId"></select></label>
+        <label class="checkbox-label"><input id="billRecurring" type="checkbox" /> Recurring monthly</label>
+        <label class="checkbox-label"><input id="billPaid" type="checkbox" /> Mark paid</label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Bill</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="paycheckModal" class="modal">
+    <form method="dialog" id="paycheckForm">
+      <div class="modal-header">
+        <h3 id="paycheckModalTitle">Add Paycheck</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <input type="hidden" id="paycheckId" />
+      <div class="form-grid">
+        <label>Pay date<input id="paycheckDate" type="date" required /></label>
+        <label>Base amount<input id="paycheckAmount" type="number" min="0" step="0.01" required /></label>
+        <label>Extra / reimbursement<input id="paycheckExtra" type="number" min="0" step="0.01" value="0" /></label>
+        <label>Notes<input id="paycheckNotes" /></label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Paycheck</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="debtModal" class="modal">
+    <form method="dialog" id="debtForm">
+      <div class="modal-header">
+        <h3>Add Debt</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label>Name<input id="debtName" required /></label>
+        <label>Current balance<input id="debtBalance" type="number" min="0" step="0.01" required /></label>
+        <label>Original balance<input id="debtOriginal" type="number" min="0" step="0.01" /></label>
+        <label>APR %<input id="debtApr" type="number" min="0" step="0.01" /></label>
+        <label>Minimum payment<input id="debtMinimum" type="number" min="0" step="0.01" /></label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Debt</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="goalModal" class="modal">
+    <form method="dialog" id="goalForm">
+      <div class="modal-header">
+        <h3>Add Savings Goal</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label>Name<input id="goalName" required /></label>
+        <label>Target amount<input id="goalTarget" type="number" min="0" step="0.01" required /></label>
+        <label>Current amount<input id="goalCurrent" type="number" min="0" step="0.01" value="0" /></label>
+        <label>Priority
+          <select id="goalPriority">
+            <option value="1">1 - Highest goal priority</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5 - Lowest goal priority</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Goal</button>
+      </div>
+    </form>
+  </dialog>
+
+
+  <dialog id="moreMenu" class="more-menu modal" aria-label="More navigation">
+    <div class="more-menu-header">
+      <div><span class="eyebrow">MORE</span><h3>More tools</h3></div>
+      <button id="closeMoreMenu" class="icon-btn" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="more-menu-grid">
+      <button class="more-menu-item" data-page="debts" data-title="Debts"><span class="more-icon">↘</span><span><strong>Debts</strong><small>Track balances and payoff progress</small></span></button>
+      <button class="more-menu-item" data-page="goals" data-title="Goals"><span class="more-icon">◎</span><span><strong>Goals</strong><small>Monitor savings targets</small></span></button>
+      <button class="more-menu-item" data-page="reports" data-title="Reports"><span class="more-icon">▥</span><span><strong>Reports</strong><small>Review totals and categories</small></span></button>
+      <button class="more-menu-item" data-page="settings" data-title="Settings"><span class="more-icon">⚙</span><span><strong>Settings</strong><small>Budget rules and data tools</small></span></button>
+    </div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
