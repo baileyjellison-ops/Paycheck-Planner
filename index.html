@@ -22,7 +22,6 @@
       <button class="nav-btn" data-page="bills">Bills</button>
       <button class="nav-btn" data-page="monthly">Monthly</button>
       <button class="nav-btn" data-page="goals">Goals</button>
-      <button class="nav-btn" data-page="debts">Debts</button>
       <button class="nav-btn" data-page="settings">Settings</button>
     </nav>
     <div class="sidebar-footer"><span class="status-dot"></span><span id="storageStatus">Saved locally</span></div>
@@ -39,11 +38,15 @@
         <article class="metric-card accent"><span>Next Paycheck</span><strong id="metricNextPaycheck">$0.00</strong><small id="metricNextPaycheckDate">No paycheck scheduled</small></article>
         <article class="metric-card"><span>Upcoming Bills</span><strong id="metricUpcomingBills">$0.00</strong><small id="metricUpcomingBillsCount">0 unpaid bills</small></article>
         <article class="metric-card"><span>Available After Rules</span><strong id="metricAvailable">$0.00</strong><small>After bills, goals, savings & cash</small></article>
-        <article class="metric-card"><span>Total Debt</span><strong id="metricDebt">$0.00</strong><small id="metricDebtCount">0 active debts</small></article>
+        <article class="metric-card"><span>Monthly Goals</span><strong id="metricGoalTotal">$0.00</strong><small id="metricGoalCount">0 active goals</small></article>
       </div>
       <div class="panel-grid two-col">
         <section class="panel"><div class="panel-header"><div><span class="eyebrow">NEXT CHECK</span><h3>Paycheck Plan</h3></div></div><div id="dashboardPaycheckPlan" class="stack"></div></section>
         <section class="panel"><div class="panel-header"><div><span class="eyebrow">MONTH STATUS</span><h3>Bill Status</h3></div></div><div id="dashboardBillStatus" class="stack"></div></section>
+      </div>
+      <div class="panel-grid two-col chart-grid">
+        <section class="panel"><div class="panel-header"><div><span class="eyebrow">CASH FLOW</span><h3>Paycheck Allocation</h3></div></div><div class="chart-wrap"><canvas id="cashFlowChart" aria-label="Paycheck allocation chart"></canvas></div></section>
+        <section class="panel"><div class="panel-header"><div><span class="eyebrow">BILL MIX</span><h3>Bills by Category</h3></div></div><div class="chart-wrap"><canvas id="categoryChart" aria-label="Bills by category chart"></canvas></div></section>
       </div>
       <section class="panel"><div class="panel-header"><div><span class="eyebrow">PRIORITY FLOW</span><h3>Waterfall Summary</h3></div></div><div id="waterfallSummary" class="waterfall"></div></section>
       <section class="panel"><div class="panel-header"><div><span class="eyebrow">GOALS</span><h3>Progress</h3></div></div><div id="dashboardGoals" class="goal-grid"></div></section>
@@ -51,7 +54,7 @@
 
     <section class="page" id="paychecks">
       <section class="panel"><div class="panel-header"><div><h3>Paycheck Schedule</h3><p>Base pay, reimbursements and overtime can be edited per check.</p></div><button class="btn btn-primary" data-open="paycheckModal">Add Paycheck</button></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Base</th><th>Extra</th><th>Total</th><th>Bills</th><th>Goals</th><th>Remaining</th><th></th></tr></thead><tbody id="paycheckTableBody"></tbody></table></div></section>
-      <section class="panel"><div class="panel-header"><div><h3>Selected Paycheck Breakdown</h3><p>Mark individual bills paid directly from this view.</p></div><div class="inline-actions"><button class="btn btn-secondary" id="prevCheck">Previous</button><button class="btn btn-secondary" id="nextCheck">Next</button></div></div><div id="selectedPaycheckBreakdown" class="empty-state">Select a paycheck to view its plan.</div></section>
+      <section class="panel"><div class="panel-header"><div><h3>Selected Paycheck Breakdown</h3><p id="selectedPaycheckDate">Select a paycheck to view its plan.</p></div><div class="inline-actions"><button class="btn btn-secondary" id="prevCheck">Previous</button><button class="btn btn-secondary" id="nextCheck">Next</button></div></div><div id="selectedPaycheckBreakdown" class="empty-state">Select a paycheck to view its plan.</div></section>
     </section>
 
     <section class="page" id="bills">
@@ -66,8 +69,6 @@
       <section class="panel"><div class="panel-header"><div><h3>Financial Goals</h3><p>Goals stay below bills and are split across checks in the selected month.</p></div><button class="btn btn-primary" data-open="goalModal">Add Goal</button></div><div id="goalCards" class="goal-grid"></div></section>
     </section>
 
-    <section class="page" id="debts">
-      <section class="panel"><div class="panel-header"><div><h3>Debt Tracker</h3><p>Track balances, APR, minimums and payoff progress.</p></div><button class="btn btn-primary" data-open="debtModal">Add Debt</button></div><div id="debtCards" class="card-list"></div></section>
     </section>
 
     <section class="page" id="settings">
@@ -77,7 +78,6 @@
         <label>Protected savings per paycheck<input id="settingsSavingsBuffer" type="number" min="0" step="0.01"></label>
         <label>Protected cash per paycheck<input id="settingsLeftoverCash" type="number" min="0" step="0.01"></label>
         <label>Savings allocation %<input id="settingsSavingsPct" type="number" min="0" max="100"></label>
-        <label>Debt allocation %<input id="settingsDebtPct" type="number" min="0" max="100"></label>
         <label>Other allocation %<input id="settingsOtherPct" type="number" min="0" max="100"></label>
         <label class="checkbox-label"><input id="settingsRentAdvance" type="checkbox"> Plan rent one month in advance</label>
         <div class="form-actions full-width"><button class="btn btn-primary" type="submit">Save Rules</button></div>
@@ -87,15 +87,14 @@
   </main>
 </div>
 
-<dialog id="billModal" class="modal"><form method="dialog" id="billForm"><div class="modal-header"><h3 id="billModalTitle">Add Bill</h3><button class="icon-btn" value="cancel">×</button></div><input type="hidden" id="billId"><div class="form-grid">
+<dialog id="billModal" class="modal"><form method="dialog" id="billForm"><div class="modal-header"><h3 id="billModalTitle">Add Bill</h3><button class="icon-btn" type="button" data-close-dialog aria-label="Close">×</button></div><input type="hidden" id="billId"><div class="form-grid">
 <label>Bill name<input id="billName" required></label><label>Amount<input id="billAmount" type="number" min="0" step="0.01" required></label><label>Due date<input id="billDueDate" type="date" required></label><label>Category<input id="billCategory" placeholder="Housing, Debt, Utility..."></label><label>Priority<select id="billPriority"><option value="1">1 - Highest</option><option value="2">2</option><option value="3">3</option></select></label><label>Recurrence<select id="billRecurrence"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="one-time">One-Time</option></select></label><label>Payment allocation<select id="billAllocation"><option value="full">Full Amount</option><option value="split">Split Between Paychecks</option></select></label><label class="checkbox-label"><input id="billActive" type="checkbox" checked> Active</label><label class="checkbox-label"><input id="billPaid" type="checkbox"> Mark paid</label><label class="full-width">Notes<textarea id="billNotes" rows="3"></textarea></label>
-</div><div class="form-actions"><button class="btn btn-secondary" value="cancel">Cancel</button><button class="btn btn-primary" type="submit" value="default">Save Bill</button></div></form></dialog>
+</div><div class="form-actions"><button class="btn btn-secondary" type="button" data-close-dialog>Cancel</button><button class="btn btn-primary" type="submit" value="default">Save Bill</button></div></form></dialog>
 
-<dialog id="paycheckModal" class="modal"><form method="dialog" id="paycheckForm"><div class="modal-header"><h3 id="paycheckModalTitle">Add Paycheck</h3><button class="icon-btn" value="cancel">×</button></div><input type="hidden" id="paycheckId"><div class="form-grid"><label>Pay date<input id="paycheckDate" type="date" required></label><label>Base amount<input id="paycheckAmount" type="number" min="0" step="0.01" required></label><label>Extra / reimbursement<input id="paycheckExtra" type="number" min="0" step="0.01" value="0"></label><label>Notes<input id="paycheckNotes"></label></div><div class="form-actions"><button class="btn btn-secondary" value="cancel">Cancel</button><button class="btn btn-primary" type="submit" value="default">Save Paycheck</button></div></form></dialog>
+<dialog id="paycheckModal" class="modal"><form method="dialog" id="paycheckForm"><div class="modal-header"><h3 id="paycheckModalTitle">Add Paycheck</h3><button class="icon-btn" type="button" data-close-dialog aria-label="Close">×</button></div><input type="hidden" id="paycheckId"><div class="form-grid"><label>Pay date<input id="paycheckDate" type="date" required></label><label>Base amount<input id="paycheckAmount" type="number" min="0" step="0.01" required></label><label>Extra / reimbursement<input id="paycheckExtra" type="number" min="0" step="0.01" value="0"></label><label>Notes<input id="paycheckNotes"></label></div><div class="form-actions"><button class="btn btn-secondary" type="button" data-close-dialog>Cancel</button><button class="btn btn-primary" type="submit" value="default">Save Paycheck</button></div></form></dialog>
 
-<dialog id="goalModal" class="modal"><form method="dialog" id="goalForm"><div class="modal-header"><h3 id="goalModalTitle">Add Goal</h3><button class="icon-btn" value="cancel">×</button></div><input type="hidden" id="goalId"><div class="form-grid"><label>Name<input id="goalName" required></label><label>Target amount<input id="goalTarget" type="number" min="0" step="0.01" required></label><label>Current balance<input id="goalCurrent" type="number" min="0" step="0.01" value="0"></label><label>Monthly contribution<input id="goalContribution" type="number" min="0" step="0.01" value="0"></label><label>Due date<input id="goalDueDate" type="date"></label><label>Priority<select id="goalPriority"><option value="1">1 - Highest goal</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><label class="checkbox-label"><input id="goalActive" type="checkbox" checked> Active</label></div><div class="form-actions"><button class="btn btn-secondary" value="cancel">Cancel</button><button class="btn btn-primary" type="submit" value="default">Save Goal</button></div></form></dialog>
+<dialog id="goalModal" class="modal"><form method="dialog" id="goalForm"><div class="modal-header"><h3 id="goalModalTitle">Add Goal</h3><button class="icon-btn" type="button" data-close-dialog aria-label="Close">×</button></div><input type="hidden" id="goalId"><div class="form-grid"><label>Name<input id="goalName" required></label><label>Target amount<input id="goalTarget" type="number" min="0" step="0.01" required></label><label>Current balance<input id="goalCurrent" type="number" min="0" step="0.01" value="0"></label><label>Monthly contribution<input id="goalContribution" type="number" min="0" step="0.01" value="0"></label><label>Due date<input id="goalDueDate" type="date"></label><label>Priority<select id="goalPriority"><option value="1">1 - Highest goal</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><label class="checkbox-label"><input id="goalActive" type="checkbox" checked> Active</label></div><div class="form-actions"><button class="btn btn-secondary" type="button" data-close-dialog>Cancel</button><button class="btn btn-primary" type="submit" value="default">Save Goal</button></div></form></dialog>
 
-<dialog id="debtModal" class="modal"><form method="dialog" id="debtForm"><div class="modal-header"><h3 id="debtModalTitle">Add Debt</h3><button class="icon-btn" value="cancel">×</button></div><input type="hidden" id="debtId"><div class="form-grid"><label>Name<input id="debtName" required></label><label>Current balance<input id="debtBalance" type="number" min="0" step="0.01" required></label><label>Original balance<input id="debtOriginal" type="number" min="0" step="0.01"></label><label>APR %<input id="debtApr" type="number" min="0" step="0.01"></label><label>Minimum payment<input id="debtMinimum" type="number" min="0" step="0.01"></label></div><div class="form-actions"><button class="btn btn-secondary" value="cancel">Cancel</button><button class="btn btn-primary" type="submit" value="default">Save Debt</button></div></form></dialog>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="app.js"></script>
