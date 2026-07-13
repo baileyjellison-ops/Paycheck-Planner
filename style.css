@@ -3,3 +3,11 @@
 @media(max-width:1100px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.goal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.check-card{grid-template-columns:1.4fr repeat(2,1fr) auto}.check-card .optional{display:none}}
 @media(max-width:760px){.app-shell{display:block}.sidebar{position:fixed;left:-280px;width:252px;padding-top:calc(24px + env(safe-area-inset-top,0px));transition:.24s}.sidebar.open{left:0}.main{padding:0 14px 30px}.topbar{margin:0 -14px 18px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;min-height:calc(68px + env(safe-area-inset-top,0px))}.menu-btn{display:grid}.topbar h2{font-size:20px}.topbar p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.metric-grid,.metric-grid.compact,.panel-grid.two-col,.goal-grid,.form-grid,.card-stats,.summary-grid{grid-template-columns:1fr}.hero-paycheck,.detail-hero{align-items:flex-start;flex-direction:column}.hero-amount,.detail-hero>div:last-child{text-align:left}.hero-amount strong,.detail-hero>div:last-child strong{font-size:30px}.panel{padding:14px}.panel-header{flex-direction:column;align-items:stretch}.check-card{grid-template-columns:1fr auto}.check-card .optional,.check-card .secondary{display:none}.modal form{padding:16px}.checkbox-label{padding-top:0}.chart-wrap{height:260px}.topbar .btn{padding:10px 11px}.detail-row{align-items:flex-start}}
 .detail-row.is-skipped{opacity:.65}.detail-row-amount .small-btn{margin-top:.45rem}.detail-row-main strong .pill{margin-left:.4rem;vertical-align:middle}.modal-header p{margin:.2rem 0 0}
+
+.dashboard-bill-actions{display:grid;justify-items:end;gap:.45rem;min-width:132px}.dashboard-bill-row small{display:block;color:var(--muted)}
+@media(max-width:760px){
+  .detail-row,.dashboard-bill-row{flex-direction:column;align-items:stretch}
+  .detail-row-amount,.dashboard-bill-actions{width:100%;text-align:left;justify-items:stretch}
+  .detail-row-amount .small-btn,.dashboard-bill-actions .small-btn{width:100%;min-height:44px;margin-top:.55rem}
+  .detail-row-main{width:100%}
+}

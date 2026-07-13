@@ -1,3 +1,6 @@
+PayDay Paycheck-First v4.2
+
+Adds visible paycheck-specific bill editing on both the Dashboard and Paycheck Details screens.
 PAYDAY PAYCHECK-FIRST PLANNER v4.1
 
 Upload every file and the assets folder directly to the root of your GitHub Pages repository.
