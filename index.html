@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1f4e78" />
+  <title>Paycheck Planner</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Paycheck Planner</h1>
+      <p>Plan bills, goals, and every paycheck in one place.</p>
+    </div>
+    <button id="resetBtn" class="danger ghost">Reset Data</button>
+  </header>
+
+  <nav class="tabs" aria-label="Main navigation">
+    <button data-tab="dashboard" class="active">Dashboard</button>
+    <button data-tab="bills">Bills</button>
+    <button data-tab="paychecks">Paychecks</button>
+    <button data-tab="goals">Goals</button>
+    <button data-tab="planner">Paycheck Planner</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+    <section id="dashboard" class="tab-panel active">
+      <div class="summary-grid">
+        <article class="card"><span>Planning Month</span><strong id="dashMonth">—</strong></article>
+        <article class="card"><span>Next Paycheck</span><strong id="dashNextPaycheck">—</strong></article>
+        <article class="card"><span>Monthly Income</span><strong id="dashIncome">$0.00</strong></article>
+        <article class="card"><span>Bills + Goals</span><strong id="dashObligations">$0.00</strong></article>
+        <article class="card"><span>Available Savings</span><strong id="dashSavings">$0.00</strong></article>
+        <article class="card"><span>Rent Per Check</span><strong id="dashRentSplit">$0.00</strong></article>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h2>Goal Progress</h2></div>
+        <div id="goalProgress" class="goal-progress"></div>
+      </div>
+    </section>
+
+    <section id="bills" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header"><h2>Bills</h2><button id="addBillBtn" class="primary">Add Bill</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Priority</th><th>Bill</th><th>Due Day</th><th>Amount</th><th>Split?</th><th>Active</th><th>Paid</th><th></th></tr></thead><tbody id="billsBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="paychecks" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header"><h2>Paychecks</h2><button id="addPaycheckBtn" class="primary">Add Paycheck</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Base Amount</th><th>Extra Income</th><th>Total</th><th>Notes</th><th></th></tr></thead><tbody id="paychecksBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="goals" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header"><h2>Financial Goals</h2><button id="addGoalBtn" class="primary">Add Goal</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Priority</th><th>Goal</th><th>Target</th><th>Current</th><th>Monthly Contribution</th><th>Due Date</th><th>Active</th><th></th></tr></thead><tbody id="goalsBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="planner" class="tab-panel">
+      <div id="plannerCards" class="planner-grid"></div>
+    </section>
+
+    <section id="settings" class="tab-panel">
+      <div class="panel settings-panel">
+        <div class="panel-header"><h2>Settings</h2></div>
+        <label>Planning Month<input id="planningMonth" type="month" /></label>
+        <label>Pay Frequency<select id="payFrequency"><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option><option>Custom</option></select></label>
+        <label>Leftover Cash Target<input id="leftoverTarget" type="number" min="0" step="0.01" /></label>
+        <label>Minimum Savings Buffer<input id="minimumSavings" type="number" min="0" step="0.01" /></label>
+        <button id="saveSettingsBtn" class="primary">Save Settings</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="editDialog">
+    <form method="dialog" id="editForm">
+      <h2 id="dialogTitle">Edit</h2>
+      <div id="dialogFields"></div>
+      <div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button id="dialogSave" value="default" class="primary">Save</button></div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

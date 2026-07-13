@@ -1,0 +1,9 @@
+{
+  "name":"Paycheck Planner",
+  "short_name":"Paycheck",
+  "start_url":"./index.html",
+  "display":"standalone",
+  "background_color":"#f4f7fa",
+  "theme_color":"#1f4e78",
+  "description":"A personal paycheck, bill, and financial goal planner."
+}
