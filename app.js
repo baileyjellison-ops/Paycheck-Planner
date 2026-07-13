@@ -1,40 +1,601 @@
-const KEY='paycheckPlannerApp_v1';
-const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(n)||0);
-const fmtDate=s=>s?new Date(s+'T12:00:00').toLocaleDateString('en-US'): '—';
-const uid=()=>crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random());
-const defaults={settings:{planningMonth:'2026-07',payFrequency:'Biweekly',leftoverTarget:150,minimumSavings:100},bills:[
-{id:uid(),priority:1,name:'Rent',dueDay:1,amount:1150,split:true,active:true,paid:false,notes:'Saved during the month before it is due'},
-{id:uid(),priority:1,name:'Student Loan 1',dueDay:5,amount:100,split:false,active:true,paid:false},
-{id:uid(),priority:1,name:'Spotify',dueDay:12,amount:12,split:false,active:true,paid:false},
-{id:uid(),priority:2,name:'Electric',dueDay:16,amount:75,split:false,active:true,paid:false},
-{id:uid(),priority:2,name:'JCPenney',dueDay:18,amount:50,split:false,active:true,paid:false},
-{id:uid(),priority:1,name:'Student Loan 2',dueDay:18,amount:238,split:false,active:true,paid:false},
-{id:uid(),priority:2,name:'Credit Card',dueDay:22,amount:300,split:false,active:true,paid:false},
-{id:uid(),priority:2,name:'Personal Loan',dueDay:28,amount:444,split:false,active:true,paid:false},
-{id:uid(),priority:2,name:'Mom',dueDay:30,amount:200,split:false,active:true,paid:false}],
-paychecks:[{id:uid(),date:'2026-07-03',amount:2184,extra:0,notes:''},{id:uid(),date:'2026-07-17',amount:2184,extra:0,notes:''},{id:uid(),date:'2026-07-31',amount:2184,extra:0,notes:''}],
-goals:[{id:uid(),priority:1,name:'Wedding',target:3653,current:0,monthly:350,dueDate:'',active:true},{id:uid(),priority:2,name:'Emergency Fund',target:10000,current:0,monthly:200,dueDate:'',active:true},{id:uid(),priority:3,name:'Vacation',target:2500,current:0,monthly:100,dueDate:'',active:false}]};
-let state=load();
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(defaults)}catch{return structuredClone(defaults)}}
-function save(){localStorage.setItem(KEY,JSON.stringify(state));renderAll()}
-function monthChecks(){return state.paychecks.filter(p=>p.date?.startsWith(state.settings.planningMonth)).sort((a,b)=>a.date.localeCompare(b.date))}
-function daysInMonth(){const [y,m]=state.settings.planningMonth.split('-').map(Number);return new Date(y,m,0).getDate()}
-function dueDate(day){const d=Math.min(Number(day)||1,daysInMonth());return `${state.settings.planningMonth}-${String(d).padStart(2,'0')}`}
-function plan(){const checks=monthChecks();return checks.map((p,i)=>{const items=[];state.bills.filter(b=>b.active).forEach(b=>{if(b.split){items.push({type:'Bill',name:b.name,priority:b.priority,due:dueDate(b.dueDay),amount:b.amount/checks.length,paid:b.paid})}else{const due=dueDate(b.dueDay);let idx=checks.findIndex((c,j)=>due>=c.date && (!checks[j+1]||due<checks[j+1].date));if(idx<0)idx=0;if(idx===i)items.push({type:'Bill',name:b.name,priority:b.priority,due,amount:b.amount,paid:b.paid})}});state.goals.filter(g=>g.active).forEach(g=>items.push({type:'Goal',name:g.name,priority:g.priority,due:g.dueDate||'',amount:g.monthly/checks.length,paid:false}));items.sort((a,b)=>a.priority-b.priority||a.name.localeCompare(b.name));const income=Number(p.amount)+Number(p.extra);const bills=items.filter(x=>x.type==='Bill').reduce((s,x)=>s+x.amount,0);const goals=items.filter(x=>x.type==='Goal').reduce((s,x)=>s+x.amount,0);const available=Math.max(0,income-bills-goals-state.settings.leftoverTarget);const remaining=income-bills-goals-state.settings.leftoverTarget-available;const status=income-bills-goals-state.settings.leftoverTarget<0?'OVER BUDGET':available<state.settings.minimumSavings?'LOW SAVINGS':'OK';return{p,items,income,bills,goals,available,remaining,status}})}
-function renderAll(){renderBills();renderPaychecks();renderGoals();renderPlanner();renderDashboard();renderSettings()}
-function inputCell(value,type,handler,opts={}){const el=document.createElement(type==='select'?'select':'input');if(type==='select'){opts.options.forEach(o=>{const op=document.createElement('option');op.value=o.value;op.textContent=o.label;op.selected=String(value)===String(o.value);el.append(op)})}else{el.type=type;el.value=value??'';if(opts.min!=null)el.min=opts.min;if(opts.step)el.step=opts.step}el.addEventListener('change',e=>handler(type==='checkbox'?e.target.checked:e.target.value));if(type==='checkbox')el.checked=!!value;return el}
-function renderBills(){const body=document.querySelector('#billsBody');body.innerHTML='';state.bills.forEach(b=>{const tr=document.createElement('tr');const vals=[
- inputCell(b.priority,'number',v=>{b.priority=+v;save()},{min:1}),inputCell(b.name,'text',v=>{b.name=v;save()}),inputCell(b.dueDay,'number',v=>{b.dueDay=+v;save()},{min:1}),inputCell(b.amount,'number',v=>{b.amount=+v;save()},{min:0,step:.01}),inputCell(b.split,'select',v=>{b.split=v==='true';save()},{options:[{value:true,label:'Yes'},{value:false,label:'No'}]}),inputCell(b.active,'select',v=>{b.active=v==='true';save()},{options:[{value:true,label:'Yes'},{value:false,label:'No'}]}),inputCell(b.paid,'select',v=>{b.paid=v==='true';save()},{options:[{value:true,label:'Yes'},{value:false,label:'No'}]})];vals.forEach(x=>{const td=document.createElement('td');td.append(x);tr.append(td)});const td=document.createElement('td'),btn=document.createElement('button');btn.className='icon-btn';btn.textContent='Delete';btn.onclick=()=>{state.bills=state.bills.filter(x=>x.id!==b.id);save()};td.append(btn);tr.append(td);body.append(tr)})}
-function renderPaychecks(){const body=document.querySelector('#paychecksBody');body.innerHTML='';state.paychecks.sort((a,b)=>a.date.localeCompare(b.date)).forEach(p=>{const tr=document.createElement('tr');[inputCell(p.date,'date',v=>{p.date=v;save()}),inputCell(p.amount,'number',v=>{p.amount=+v;save()},{min:0,step:.01}),inputCell(p.extra,'number',v=>{p.extra=+v;save()},{min:0,step:.01})].forEach(x=>{const td=document.createElement('td');td.append(x);tr.append(td)});const total=document.createElement('td');total.textContent=money(+p.amount + +p.extra);tr.append(total);const notes=document.createElement('td');notes.append(inputCell(p.notes,'text',v=>{p.notes=v;save()}));tr.append(notes);const td=document.createElement('td'),btn=document.createElement('button');btn.className='icon-btn';btn.textContent='Delete';btn.onclick=()=>{state.paychecks=state.paychecks.filter(x=>x.id!==p.id);save()};td.append(btn);tr.append(td);body.append(tr)})}
-function renderGoals(){const body=document.querySelector('#goalsBody');body.innerHTML='';state.goals.forEach(g=>{const tr=document.createElement('tr');const fields=[inputCell(g.priority,'number',v=>{g.priority=+v;save()},{min:1}),inputCell(g.name,'text',v=>{g.name=v;save()}),inputCell(g.target,'number',v=>{g.target=+v;save()},{min:0,step:.01}),inputCell(g.current,'number',v=>{g.current=+v;save()},{min:0,step:.01}),inputCell(g.monthly,'number',v=>{g.monthly=+v;save()},{min:0,step:.01}),inputCell(g.dueDate,'date',v=>{g.dueDate=v;save()}),inputCell(g.active,'select',v=>{g.active=v==='true';save()},{options:[{value:true,label:'Yes'},{value:false,label:'No'}]})];fields.forEach(x=>{const td=document.createElement('td');td.append(x);tr.append(td)});const td=document.createElement('td'),btn=document.createElement('button');btn.className='icon-btn';btn.textContent='Delete';btn.onclick=()=>{state.goals=state.goals.filter(x=>x.id!==g.id);save()};td.append(btn);tr.append(td);body.append(tr)})}
-function renderPlanner(){const wrap=document.querySelector('#plannerCards');wrap.innerHTML='';const plans=plan();if(!plans.length){wrap.innerHTML='<div class="panel"><div class="panel-header"><h2>No paychecks entered for this planning month.</h2></div></div>';return}plans.forEach(x=>{const card=document.createElement('article');card.className='planner-card';const items=x.items.map(i=>`<div class="planner-line"><div><strong>${i.name}</strong><small>${i.type}${i.due?' • Due '+fmtDate(i.due):''} • Priority ${i.priority}</small></div><span>${money(i.amount)}</span></div>`).join('');const cls=x.status==='OK'?'ok':x.status==='LOW SAVINGS'?'warn':'bad';card.innerHTML=`<header><h3>${fmtDate(x.p.date)}</h3><div>Income: ${money(x.income)}</div></header><div class="content">${items}<div class="totals"><div class="planner-line"><b>Bills</b><b>${money(x.bills)}</b></div><div class="planner-line"><b>Goals</b><b>${money(x.goals)}</b></div><div class="planner-line"><b>Leftover Target</b><b>${money(state.settings.leftoverTarget)}</b></div><div class="planner-line"><b>Available Savings</b><b>${money(x.available)}</b></div><p><span class="status ${cls}">${x.status}</span></p></div></div>`;wrap.append(card)})}
-function renderDashboard(){const plans=plan(),checks=monthChecks();document.querySelector('#dashMonth').textContent=new Date(state.settings.planningMonth+'-01T12:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});document.querySelector('#dashNextPaycheck').textContent=checks.find(c=>new Date(c.date+'T23:59:59')>=new Date())?fmtDate(checks.find(c=>new Date(c.date+'T23:59:59')>=new Date()).date):(checks[0]?fmtDate(checks[0].date):'—');document.querySelector('#dashIncome').textContent=money(plans.reduce((s,x)=>s+x.income,0));document.querySelector('#dashObligations').textContent=money(plans.reduce((s,x)=>s+x.bills+x.goals,0));document.querySelector('#dashSavings').textContent=money(plans.reduce((s,x)=>s+x.available,0));const rent=state.bills.find(b=>b.active&&b.name.toLowerCase()==='rent');document.querySelector('#dashRentSplit').textContent=money(rent&&checks.length?rent.amount/checks.length:0);const gp=document.querySelector('#goalProgress');gp.innerHTML='';state.goals.filter(g=>g.active).forEach(g=>{const pct=g.target?Math.min(100,g.current/g.target*100):0;const row=document.createElement('div');row.className='goal-row';row.innerHTML=`<strong>${g.name}</strong><div class="bar"><span style="width:${pct}%"></span></div><span>${Math.round(pct)}% • ${money(Math.max(0,g.target-g.current))} left</span>`;gp.append(row)});if(!gp.children.length)gp.textContent='No active goals.'}
-function renderSettings(){planningMonth.value=state.settings.planningMonth;payFrequency.value=state.settings.payFrequency;leftoverTarget.value=state.settings.leftoverTarget;minimumSavings.value=state.settings.minimumSavings}
-function switchTab(id){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===id))}
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
-addBillBtn.onclick=()=>{state.bills.push({id:uid(),priority:3,name:'New Bill',dueDay:1,amount:0,split:false,active:true,paid:false,notes:''});save()};
-addPaycheckBtn.onclick=()=>{state.paychecks.push({id:uid(),date:state.settings.planningMonth+'-01',amount:0,extra:0,notes:''});save()};
-addGoalBtn.onclick=()=>{state.goals.push({id:uid(),priority:3,name:'New Goal',target:0,current:0,monthly:0,dueDate:'',active:true});save()};
-saveSettingsBtn.onclick=()=>{state.settings={planningMonth:planningMonth.value,payFrequency:payFrequency.value,leftoverTarget:+leftoverTarget.value,minimumSavings:+minimumSavings.value};save()};
-resetBtn.onclick=()=>{if(confirm('Reset all app data to the original spreadsheet values?')){state=structuredClone(defaults);save()}};
-renderAll();
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "payday_v1_8_7_data";
+
+  const defaultData = {
+    version: "1.8.7",
+    settings: {
+      savingsBuffer: 100,
+      leftoverCash: 150,
+      payFrequency: "biweekly",
+      rentAdvance: true
+    },
+    paychecks: [],
+    bills: [],
+    debts: [],
+    goals: [],
+    transactions: []
+  };
+
+  let data = loadData();
+  let selectedPaycheckId = null;
+
+  const $ = (id) => document.getElementById(id);
+  const money = (value) => new Intl.NumberFormat("en-US", {
+    style: "currency", currency: "USD"
+  }).format(Number(value || 0));
+
+  const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const todayISO = () => new Date().toISOString().slice(0, 10);
+
+  function loadData() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return parsed ? { ...structuredClone(defaultData), ...parsed } : structuredClone(defaultData);
+    } catch {
+      return structuredClone(defaultData);
+    }
+  }
+
+  function saveData(message = "Saved") {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    $("storageStatus").textContent = `Saved locally • ${new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}`;
+    if (message) toast(message);
+    renderAll();
+  }
+
+  function toast(message) {
+    const el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => el.classList.remove("show"), 1800);
+  }
+
+  function daysUntil(dateString) {
+    const now = new Date(todayISO() + "T00:00:00");
+    const due = new Date(dateString + "T00:00:00");
+    return Math.round((due - now) / 86400000);
+  }
+
+  function billStatus(bill) {
+    if (bill.paid) return "paid";
+    const days = daysUntil(bill.dueDate);
+    if (days < 0) return "overdue";
+    if (days <= 7) return "due";
+    return "upcoming";
+  }
+
+  function statusBadge(status) {
+    const labels = { paid: "Paid", overdue: "Overdue", due: "Due Soon", upcoming: "Upcoming" };
+    return `<span class="badge badge-${status}">${labels[status]}</span>`;
+  }
+
+  function sortedPaychecks() {
+    return [...data.paychecks].sort((a,b) => a.date.localeCompare(b.date));
+  }
+
+  function sortedBills() {
+    return [...data.bills].sort((a,b) => a.dueDate.localeCompare(b.dueDate));
+  }
+
+  function paycheckTotal(check) {
+    return Number(check.amount || 0) + Number(check.extra || 0);
+  }
+
+  function assignedBills(paycheckId) {
+    return data.bills.filter(b => b.paycheckId === paycheckId);
+  }
+
+  function paycheckRemaining(check) {
+    const assigned = assignedBills(check.id).reduce((s,b) => s + Number(b.amount || 0), 0);
+    return paycheckTotal(check) - assigned - Number(data.settings.savingsBuffer || 0) - Number(data.settings.leftoverCash || 0);
+  }
+
+  function nextPaycheck() {
+    return sortedPaychecks().find(p => p.date >= todayISO()) || sortedPaychecks().at(-1) || null;
+  }
+
+  function renderDashboard() {
+    const next = nextPaycheck();
+    $("metricNextPaycheck").textContent = next ? money(paycheckTotal(next)) : money(0);
+    $("metricNextPaycheckDate").textContent = next ? new Date(next.date + "T00:00:00").toLocaleDateString() : "No paycheck scheduled";
+
+    const unpaid = data.bills.filter(b => !b.paid);
+    $("metricUpcomingBills").textContent = money(unpaid.reduce((s,b) => s + Number(b.amount || 0), 0));
+    $("metricUpcomingBillsCount").textContent = `${unpaid.length} unpaid bill${unpaid.length === 1 ? "" : "s"}`;
+    $("metricDebt").textContent = money(data.debts.reduce((s,d) => s + Number(d.balance || 0), 0));
+    $("metricDebtCount").textContent = `${data.debts.length} active debt${data.debts.length === 1 ? "" : "s"}`;
+    $("metricAvailable").textContent = next ? money(paycheckRemaining(next)) : money(0);
+
+    const plan = $("dashboardPaycheckPlan");
+    if (!next) {
+      plan.innerHTML = `<div class="empty-state">Add a paycheck to begin planning.</div>`;
+    } else {
+      const bills = assignedBills(next.id);
+      plan.innerHTML = `
+        <div class="list-row"><div><strong>${new Date(next.date+"T00:00:00").toLocaleDateString()}</strong><br><small>${next.notes || "Scheduled paycheck"}</small></div><strong>${money(paycheckTotal(next))}</strong></div>
+        <div class="list-row"><span>Assigned bills</span><strong>${money(bills.reduce((s,b)=>s+Number(b.amount),0))}</strong></div>
+        <div class="list-row"><span>Savings buffer</span><strong>${money(data.settings.savingsBuffer)}</strong></div>
+        <div class="list-row"><span>Leftover cash</span><strong>${money(data.settings.leftoverCash)}</strong></div>
+        <div class="list-row"><span>Remaining</span><strong>${money(paycheckRemaining(next))}</strong></div>`;
+    }
+
+    const status = $("dashboardBillStatus");
+    const upcoming = sortedBills().filter(b => !b.paid).slice(0, 6);
+    status.innerHTML = upcoming.length ? upcoming.map(b => `
+      <div class="list-row">
+        <div>${statusBadge(billStatus(b))} <strong>${escapeHtml(b.name)}</strong><br><small>${new Date(b.dueDate+"T00:00:00").toLocaleDateString()}</small></div>
+        <strong>${money(b.amount)}</strong>
+      </div>`).join("") : `<div class="empty-state">No unpaid bills.</div>`;
+
+    const byPriority = [1,2,3].map(priority => ({
+      priority,
+      total: data.bills.filter(b => !b.paid && Number(b.priority) === priority).reduce((s,b)=>s+Number(b.amount),0)
+    }));
+    $("waterfallSummary").innerHTML = byPriority.map(x => `
+      <div class="waterfall-row priority-${x.priority}">
+        <span>Priority ${x.priority} ${x.priority===1?"— Fixed date":x.priority===2?"— Fixed flexible":"— Adjustable goals"}</span>
+        <strong>${money(x.total)}</strong>
+      </div>`).join("");
+  }
+
+  function renderPaychecks() {
+    const tbody = $("paycheckTableBody");
+    const checks = sortedPaychecks();
+    tbody.innerHTML = checks.length ? checks.map(p => {
+      const assigned = assignedBills(p.id).reduce((s,b)=>s+Number(b.amount),0);
+      return `<tr>
+        <td><button class="btn btn-small btn-secondary" data-select-paycheck="${p.id}">${new Date(p.date+"T00:00:00").toLocaleDateString()}</button></td>
+        <td>${money(p.amount)}</td><td>${money(p.extra)}</td><td>${money(paycheckTotal(p))}</td>
+        <td>${money(assigned)}</td><td>${money(paycheckRemaining(p))}</td>
+        <td class="row-actions">
+          <button class="btn btn-small btn-secondary" data-edit-paycheck="${p.id}">Edit</button>
+          <button class="btn btn-small btn-danger" data-delete-paycheck="${p.id}">Delete</button>
+        </td></tr>`;
+    }).join("") : `<tr><td colspan="7"><div class="empty-state">No paychecks added.</div></td></tr>`;
+
+    renderPaycheckOptions();
+    renderSelectedPaycheck();
+  }
+
+  function renderSelectedPaycheck() {
+    const container = $("selectedPaycheckBreakdown");
+    const check = data.paychecks.find(p => p.id === selectedPaycheckId);
+    if (!check) {
+      container.className = "empty-state";
+      container.innerHTML = "Select a paycheck to see its breakdown.";
+      return;
+    }
+    const bills = assignedBills(check.id).sort((a,b)=>Number(a.priority)-Number(b.priority));
+    container.className = "waterfall";
+    container.innerHTML = `
+      <div class="waterfall-row"><span>Paycheck total</span><strong>${money(paycheckTotal(check))}</strong></div>
+      ${bills.map(b=>`<div class="waterfall-row priority-${b.priority}"><span>${escapeHtml(b.name)}</span><strong>-${money(b.amount)}</strong></div>`).join("")}
+      <div class="waterfall-row priority-3"><span>Savings buffer</span><strong>-${money(data.settings.savingsBuffer)}</strong></div>
+      <div class="waterfall-row priority-3"><span>Leftover cash</span><strong>-${money(data.settings.leftoverCash)}</strong></div>
+      <div class="waterfall-row"><span>Remaining</span><strong>${money(paycheckRemaining(check))}</strong></div>`;
+  }
+
+  function renderPaycheckOptions() {
+    const select = $("billPaycheckId");
+    const current = select.value;
+    select.innerHTML = `<option value="">Unassigned</option>` + sortedPaychecks().map(p =>
+      `<option value="${p.id}">${new Date(p.date+"T00:00:00").toLocaleDateString()} — ${money(paycheckTotal(p))}</option>`
+    ).join("");
+    select.value = current;
+  }
+
+  function renderBills() {
+    const filter = $("billFilter").value;
+    let bills = sortedBills();
+    if (filter === "paid") bills = bills.filter(b=>b.paid);
+    if (filter === "unpaid") bills = bills.filter(b=>!b.paid);
+    if (filter === "overdue") bills = bills.filter(b=>billStatus(b)==="overdue");
+
+    const tbody = $("billTableBody");
+    tbody.innerHTML = bills.length ? bills.map(b => {
+      const check = data.paychecks.find(p=>p.id===b.paycheckId);
+      return `<tr>
+        <td>${statusBadge(billStatus(b))}</td>
+        <td><strong>${escapeHtml(b.name)}</strong><br><small class="muted">${escapeHtml(b.category || "Uncategorized")}${b.recurring ? " • Recurring" : ""}</small></td>
+        <td>${money(b.amount)}</td>
+        <td>${new Date(b.dueDate+"T00:00:00").toLocaleDateString()}</td>
+        <td>${b.priority}</td>
+        <td>${check ? new Date(check.date+"T00:00:00").toLocaleDateString() : "Unassigned"}</td>
+        <td><input type="checkbox" data-toggle-paid="${b.id}" ${b.paid ? "checked" : ""} /></td>
+        <td class="row-actions">
+          <button class="btn btn-small btn-secondary" data-edit-bill="${b.id}">Edit</button>
+          <button class="btn btn-small btn-danger" data-delete-bill="${b.id}">Delete</button>
+        </td></tr>`;
+    }).join("") : `<tr><td colspan="8"><div class="empty-state">No bills match this filter.</div></td></tr>`;
+  }
+
+  function renderMonthly() {
+    const selectedMonth = $("monthPicker").value || todayISO().slice(0,7);
+    const checks = sortedPaychecks().filter(p=>p.date.startsWith(selectedMonth));
+    const bills = sortedBills().filter(b=>b.dueDate.startsWith(selectedMonth));
+    const income = checks.reduce((s,p)=>s+paycheckTotal(p),0);
+    const expenses = bills.reduce((s,b)=>s+Number(b.amount),0);
+    const paid = bills.filter(b=>b.paid).reduce((s,b)=>s+Number(b.amount),0);
+    const buffers = checks.length * (Number(data.settings.savingsBuffer)+Number(data.settings.leftoverCash));
+
+    $("monthlySummary").innerHTML = [
+      ["Income", income],
+      ["Bills", expenses],
+      ["Paid", paid],
+      ["After bills & buffers", income-expenses-buffers]
+    ].map(([label,val])=>`<article class="metric-card"><span>${label}</span><strong>${money(val)}</strong></article>`).join("");
+
+    const container = $("monthlyPaycheckCards");
+    container.innerHTML = checks.length ? checks.map(p => {
+      const pbills = assignedBills(p.id);
+      return `<article class="data-card">
+        <div class="data-card-header"><div><strong>${new Date(p.date+"T00:00:00").toLocaleDateString()}</strong><div class="muted">${p.notes || "Paycheck"}</div></div><strong>${money(paycheckTotal(p))}</strong></div>
+        <div class="card-meta"><span>${pbills.length} assigned bills</span><span>Remaining ${money(paycheckRemaining(p))}</span></div>
+        <div class="stack" style="margin-top:12px">${pbills.map(b=>`<div class="list-row"><span>${escapeHtml(b.name)}</span><strong>${money(b.amount)}</strong></div>`).join("") || `<div class="empty-state">No bills assigned.</div>`}</div>
+      </article>`;
+    }).join("") : `<div class="empty-state">No paychecks in this month.</div>`;
+  }
+
+  function renderDebts() {
+    const container = $("debtCards");
+    container.innerHTML = data.debts.length ? data.debts.map(d => {
+      const original = Number(d.original || d.balance || 0);
+      const paid = Math.max(0, original - Number(d.balance || 0));
+      const pct = original ? Math.min(100, paid/original*100) : 0;
+      return `<article class="data-card">
+        <div class="data-card-header"><div><strong>${escapeHtml(d.name)}</strong><div class="muted">${Number(d.apr||0).toFixed(2)}% APR</div></div><strong>${money(d.balance)}</strong></div>
+        <div class="progress"><span style="width:${pct}%"></span></div>
+        <div class="card-meta"><span>${pct.toFixed(1)}% paid</span><span>Minimum ${money(d.minimum)}</span></div>
+        <div class="form-actions"><button class="btn btn-small btn-danger" data-delete-debt="${d.id}">Delete</button></div>
+      </article>`;
+    }).join("") : `<div class="empty-state">No debts added.</div>`;
+  }
+
+  function renderGoals() {
+    const container = $("goalCards");
+    container.innerHTML = data.goals.length ? data.goals.sort((a,b)=>Number(a.priority)-Number(b.priority)).map(g => {
+      const pct = Number(g.target) ? Math.min(100, Number(g.current)/Number(g.target)*100) : 0;
+      return `<article class="data-card">
+        <div class="data-card-header"><div><strong>${escapeHtml(g.name)}</strong><div class="muted">Priority ${g.priority}</div></div><strong>${money(g.current)} / ${money(g.target)}</strong></div>
+        <div class="progress"><span style="width:${pct}%"></span></div>
+        <div class="card-meta"><span>${pct.toFixed(1)}% complete</span></div>
+        <div class="form-actions">
+          <button class="btn btn-small btn-secondary" data-add-goal="${g.id}">Add Contribution</button>
+          <button class="btn btn-small btn-danger" data-delete-goal="${g.id}">Delete</button>
+        </div>
+      </article>`;
+    }).join("") : `<div class="empty-state">No savings goals added.</div>`;
+  }
+
+  function renderReports() {
+    const totalIncome = data.paychecks.reduce((s,p)=>s+paycheckTotal(p),0);
+    const totalBills = data.bills.reduce((s,b)=>s+Number(b.amount),0);
+    const totalPaid = data.bills.filter(b=>b.paid).reduce((s,b)=>s+Number(b.amount),0);
+    const totalDebt = data.debts.reduce((s,d)=>s+Number(d.balance),0);
+    $("reportCards").innerHTML = [
+      ["Scheduled Income", totalIncome],["Total Bills", totalBills],["Bills Paid", totalPaid],["Debt Balance", totalDebt]
+    ].map(([label,val])=>`<article class="metric-card"><span>${label}</span><strong>${money(val)}</strong></article>`).join("");
+
+    renderBarReport("categoryReport", groupTotals(data.bills, b=>b.category || "Uncategorized"));
+    renderBarReport("priorityReport", groupTotals(data.bills, b=>`Priority ${b.priority}`));
+  }
+
+  function groupTotals(items, keyFn) {
+    return items.reduce((acc,item)=>{
+      const key = keyFn(item);
+      acc[key] = (acc[key] || 0) + Number(item.amount || 0);
+      return acc;
+    }, {});
+  }
+
+  function renderBarReport(id, totals) {
+    const max = Math.max(1, ...Object.values(totals));
+    $(id).innerHTML = Object.keys(totals).length ? Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+      <div class="bar-row"><span>${escapeHtml(k)}</span><div class="bar-track"><span style="width:${v/max*100}%"></span></div><strong>${money(v)}</strong></div>
+    `).join("") : `<div class="empty-state">No data available.</div>`;
+  }
+
+  function renderSettings() {
+    $("settingsSavingsBuffer").value = data.settings.savingsBuffer;
+    $("settingsLeftoverCash").value = data.settings.leftoverCash;
+    $("settingsPayFrequency").value = data.settings.payFrequency;
+    $("settingsRentAdvance").checked = !!data.settings.rentAdvance;
+  }
+
+  function renderAll() {
+    renderDashboard();
+    renderPaychecks();
+    renderBills();
+    renderMonthly();
+    renderDebts();
+    renderGoals();
+    renderReports();
+    renderSettings();
+  }
+
+  function openModal(id) {
+    if (id === "billModal") resetBillForm();
+    if (id === "paycheckModal") resetPaycheckForm();
+    $(id).showModal();
+  }
+
+  function resetBillForm() {
+    $("billForm").reset();
+    $("billId").value = "";
+    $("billDueDate").value = todayISO();
+    $("billPriority").value = "2";
+    $("billModalTitle").textContent = "Add Bill";
+    renderPaycheckOptions();
+  }
+
+  function resetPaycheckForm() {
+    $("paycheckForm").reset();
+    $("paycheckId").value = "";
+    $("paycheckDate").value = todayISO();
+    $("paycheckExtra").value = "0";
+    $("paycheckModalTitle").textContent = "Add Paycheck";
+  }
+
+  function editBill(id) {
+    const b = data.bills.find(x=>x.id===id);
+    if (!b) return;
+    resetBillForm();
+    $("billId").value = b.id;
+    $("billName").value = b.name;
+    $("billAmount").value = b.amount;
+    $("billDueDate").value = b.dueDate;
+    $("billCategory").value = b.category || "";
+    $("billPriority").value = String(b.priority);
+    $("billPaycheckId").value = b.paycheckId || "";
+    $("billRecurring").checked = !!b.recurring;
+    $("billPaid").checked = !!b.paid;
+    $("billModalTitle").textContent = "Edit Bill";
+    $("billModal").showModal();
+  }
+
+  function editPaycheck(id) {
+    const p = data.paychecks.find(x=>x.id===id);
+    if (!p) return;
+    resetPaycheckForm();
+    $("paycheckId").value = p.id;
+    $("paycheckDate").value = p.date;
+    $("paycheckAmount").value = p.amount;
+    $("paycheckExtra").value = p.extra || 0;
+    $("paycheckNotes").value = p.notes || "";
+    $("paycheckModalTitle").textContent = "Edit Paycheck";
+    $("paycheckModal").showModal();
+  }
+
+  function loadDemoData() {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth()+1).padStart(2,"0");
+    const nextMonthDate = new Date(year, new Date().getMonth()+1, 1);
+    const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth()+1).padStart(2,"0")}`;
+    const p1 = uid("pay"), p2 = uid("pay");
+    data = structuredClone(defaultData);
+    data.paychecks = [
+      {id:p1,date:`${year}-${month}-10`,amount:2184,extra:0,notes:"Regular paycheck"},
+      {id:p2,date:`${year}-${month}-24`,amount:2184,extra:150,notes:"Regular paycheck + overtime"}
+    ];
+    data.bills = [
+      {id:uid("bill"),name:"Rent",amount:1150,dueDate:`${nextMonth}-01`,category:"Housing",priority:2,paycheckId:p1,recurring:true,paid:false},
+      {id:uid("bill"),name:"Student Loan 1",amount:100,dueDate:`${year}-${month}-05`,category:"Debt",priority:1,paycheckId:p1,recurring:true,paid:false},
+      {id:uid("bill"),name:"Spotify",amount:12,dueDate:`${year}-${month}-12`,category:"Subscription",priority:1,paycheckId:p1,recurring:true,paid:false},
+      {id:uid("bill"),name:"Electric",amount:75,dueDate:`${year}-${month}-16`,category:"Utility",priority:2,paycheckId:p1,recurring:true,paid:false},
+      {id:uid("bill"),name:"Student Loan 2",amount:238,dueDate:`${year}-${month}-18`,category:"Debt",priority:1,paycheckId:p2,recurring:true,paid:false},
+      {id:uid("bill"),name:"Credit Card",amount:300,dueDate:`${year}-${month}-22`,category:"Debt",priority:2,paycheckId:p2,recurring:true,paid:false},
+      {id:uid("bill"),name:"Personal Loan",amount:444,dueDate:`${year}-${month}-28`,category:"Debt",priority:2,paycheckId:p2,recurring:true,paid:false}
+    ];
+    data.debts = [
+      {id:uid("debt"),name:"PSECU Credit Card",balance:16250,original:18000,apr:12.9,minimum:300},
+      {id:uid("debt"),name:"Personal Loans",balance:17000,original:20000,apr:8.5,minimum:444},
+      {id:uid("debt"),name:"Student Loans",balance:30000,original:34000,apr:5.2,minimum:338}
+    ];
+    data.goals = [
+      {id:uid("goal"),name:"Emergency Fund",target:5000,current:1200,priority:1},
+      {id:uid("goal"),name:"Wedding Savings",target:10000,current:3200,priority:2}
+    ];
+    saveData("Demo data loaded");
+  }
+
+  function exportJson() {
+    downloadBlob(JSON.stringify(data,null,2), "PayDay_v1.8.7_backup.json", "application/json");
+  }
+
+  function exportCsv() {
+    const rows = [["Status","Bill","Amount","Due Date","Category","Priority","Paid"]];
+    sortedBills().forEach(b=>rows.push([billStatus(b),b.name,b.amount,b.dueDate,b.category||"",b.priority,b.paid?"Yes":"No"]));
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+    downloadBlob(csv, "PayDay_Bills.csv", "text/csv");
+  }
+
+  function downloadBlob(content, filename, type) {
+    const url = URL.createObjectURL(new Blob([content], {type}));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[ch]));
+  }
+
+  document.addEventListener("click", (e) => {
+    const nav = e.target.closest("[data-page]");
+    if (nav) {
+      document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+      nav.classList.add("active");
+      document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+      $(nav.dataset.page).classList.add("active");
+      $("pageTitle").textContent = nav.textContent;
+    }
+
+    const modal = e.target.closest("[data-open-modal]");
+    if (modal) openModal(modal.dataset.openModal);
+
+    const selectPay = e.target.closest("[data-select-paycheck]");
+    if (selectPay) { selectedPaycheckId = selectPay.dataset.selectPaycheck; renderSelectedPaycheck(); }
+
+    const editB = e.target.closest("[data-edit-bill]");
+    if (editB) editBill(editB.dataset.editBill);
+    const delB = e.target.closest("[data-delete-bill]");
+    if (delB && confirm("Delete this bill?")) {
+      data.bills = data.bills.filter(b=>b.id!==delB.dataset.deleteBill); saveData("Bill deleted");
+    }
+
+    const editP = e.target.closest("[data-edit-paycheck]");
+    if (editP) editPaycheck(editP.dataset.editPaycheck);
+    const delP = e.target.closest("[data-delete-paycheck]");
+    if (delP && confirm("Delete this paycheck? Assigned bills will become unassigned.")) {
+      const id = delP.dataset.deletePaycheck;
+      data.paychecks = data.paychecks.filter(p=>p.id!==id);
+      data.bills.forEach(b=>{ if (b.paycheckId===id) b.paycheckId=""; });
+      if (selectedPaycheckId===id) selectedPaycheckId=null;
+      saveData("Paycheck deleted");
+    }
+
+    const delD = e.target.closest("[data-delete-debt]");
+    if (delD && confirm("Delete this debt?")) {
+      data.debts = data.debts.filter(d=>d.id!==delD.dataset.deleteDebt); saveData("Debt deleted");
+    }
+
+    const delG = e.target.closest("[data-delete-goal]");
+    if (delG && confirm("Delete this goal?")) {
+      data.goals = data.goals.filter(g=>g.id!==delG.dataset.deleteGoal); saveData("Goal deleted");
+    }
+
+    const addG = e.target.closest("[data-add-goal]");
+    if (addG) {
+      const goal = data.goals.find(g=>g.id===addG.dataset.addGoal);
+      const amount = Number(prompt("Contribution amount:", "0"));
+      if (goal && Number.isFinite(amount) && amount > 0) {
+        goal.current = Number(goal.current||0)+amount;
+        data.transactions.push({id:uid("txn"),date:todayISO(),type:"goal",name:goal.name,amount});
+        saveData("Contribution added");
+      }
+    }
+  });
+
+  document.addEventListener("change", (e)=>{
+    if (e.target.matches("[data-toggle-paid]")) {
+      const bill = data.bills.find(b=>b.id===e.target.dataset.togglePaid);
+      if (bill) {
+        bill.paid = e.target.checked;
+        data.transactions.push({id:uid("txn"),date:todayISO(),type:"bill",name:bill.name,amount:Number(bill.amount),paid:bill.paid});
+        saveData(bill.paid ? "Bill marked paid" : "Bill marked unpaid");
+      }
+    }
+  });
+
+  $("billForm").addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const id = $("billId").value || uid("bill");
+    const bill = {
+      id,
+      name:$("billName").value.trim(),
+      amount:Number($("billAmount").value),
+      dueDate:$("billDueDate").value,
+      category:$("billCategory").value.trim(),
+      priority:Number($("billPriority").value),
+      paycheckId:$("billPaycheckId").value,
+      recurring:$("billRecurring").checked,
+      paid:$("billPaid").checked
+    };
+    const i = data.bills.findIndex(b=>b.id===id);
+    if (i>=0) data.bills[i]=bill; else data.bills.push(bill);
+    $("billModal").close();
+    saveData(i>=0 ? "Bill updated" : "Bill added");
+  });
+
+  $("paycheckForm").addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const id = $("paycheckId").value || uid("pay");
+    const paycheck = {
+      id,
+      date:$("paycheckDate").value,
+      amount:Number($("paycheckAmount").value),
+      extra:Number($("paycheckExtra").value || 0),
+      notes:$("paycheckNotes").value.trim()
+    };
+    const i = data.paychecks.findIndex(p=>p.id===id);
+    if (i>=0) data.paychecks[i]=paycheck; else data.paychecks.push(paycheck);
+    $("paycheckModal").close();
+    selectedPaycheckId = id;
+    saveData(i>=0 ? "Paycheck updated" : "Paycheck added");
+  });
+
+  $("debtForm").addEventListener("submit", (e)=>{
+    e.preventDefault();
+    data.debts.push({
+      id:uid("debt"),
+      name:$("debtName").value.trim(),
+      balance:Number($("debtBalance").value),
+      original:Number($("debtOriginal").value || $("debtBalance").value),
+      apr:Number($("debtApr").value || 0),
+      minimum:Number($("debtMinimum").value || 0)
+    });
+    $("debtModal").close(); $("debtForm").reset(); saveData("Debt added");
+  });
+
+  $("goalForm").addEventListener("submit", (e)=>{
+    e.preventDefault();
+    data.goals.push({
+      id:uid("goal"),
+      name:$("goalName").value.trim(),
+      target:Number($("goalTarget").value),
+      current:Number($("goalCurrent").value || 0),
+      priority:Number($("goalPriority").value)
+    });
+    $("goalModal").close(); $("goalForm").reset(); saveData("Goal added");
+  });
+
+  $("settingsForm").addEventListener("submit", (e)=>{
+    e.preventDefault();
+    data.settings = {
+      savingsBuffer:Number($("settingsSavingsBuffer").value || 0),
+      leftoverCash:Number($("settingsLeftoverCash").value || 0),
+      payFrequency:$("settingsPayFrequency").value,
+      rentAdvance:$("settingsRentAdvance").checked
+    };
+    saveData("Settings saved");
+  });
+
+  $("billFilter").addEventListener("change", renderBills);
+  $("monthPicker").addEventListener("change", renderMonthly);
+  $("quickAddBill").addEventListener("click", ()=>openModal("billModal"));
+  $("quickAddPaycheck").addEventListener("click", ()=>openModal("paycheckModal"));
+  $("exportJsonBtn").addEventListener("click", exportJson);
+  $("exportCsvBtn").addEventListener("click", exportCsv);
+  $("loadDemoBtn").addEventListener("click", ()=>{ if(confirm("Replace current data with demo data?")) loadDemoData(); });
+  $("resetDataBtn").addEventListener("click", ()=>{
+    if (confirm("Reset all PayDay data? This cannot be undone unless you exported a backup.")) {
+      data = structuredClone(defaultData); localStorage.removeItem(STORAGE_KEY); saveData("All data reset");
+    }
+  });
+
+  $("importJsonInput").addEventListener("change", async (e)=>{
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const imported = JSON.parse(await file.text());
+      data = { ...structuredClone(defaultData), ...imported };
+      saveData("Backup imported");
+    } catch {
+      alert("That file is not a valid PayDay backup.");
+    }
+    e.target.value = "";
+  });
+
+  $("todayLabel").textContent = new Date().toLocaleDateString(undefined, {weekday:"long",year:"numeric",month:"long",day:"numeric"});
+  $("monthPicker").value = todayISO().slice(0,7);
+  renderAll();
+
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  }
+})();

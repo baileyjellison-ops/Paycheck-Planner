@@ -3,90 +3,365 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#1f4e78" />
-  <title>Paycheck Planner</title>
+  <meta name="theme-color" content="#0b1220" />
+  <title>PayDay v1.8.7</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>Paycheck Planner</h1>
-      <p>Plan bills, goals, and every paycheck in one place.</p>
-    </div>
-    <button id="resetBtn" class="danger ghost">Reset Data</button>
-  </header>
-
-  <nav class="tabs" aria-label="Main navigation">
-    <button data-tab="dashboard" class="active">Dashboard</button>
-    <button data-tab="bills">Bills</button>
-    <button data-tab="paychecks">Paychecks</button>
-    <button data-tab="goals">Goals</button>
-    <button data-tab="planner">Paycheck Planner</button>
-    <button data-tab="settings">Settings</button>
-  </nav>
-
-  <main>
-    <section id="dashboard" class="tab-panel active">
-      <div class="summary-grid">
-        <article class="card"><span>Planning Month</span><strong id="dashMonth">—</strong></article>
-        <article class="card"><span>Next Paycheck</span><strong id="dashNextPaycheck">—</strong></article>
-        <article class="card"><span>Monthly Income</span><strong id="dashIncome">$0.00</strong></article>
-        <article class="card"><span>Bills + Goals</span><strong id="dashObligations">$0.00</strong></article>
-        <article class="card"><span>Available Savings</span><strong id="dashSavings">$0.00</strong></article>
-        <article class="card"><span>Rent Per Check</span><strong id="dashRentSplit">$0.00</strong></article>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">PD</div>
+        <div>
+          <h1>PayDay</h1>
+          <span>v1.8.7</span>
+        </div>
       </div>
-      <div class="panel">
-        <div class="panel-header"><h2>Goal Progress</h2></div>
-        <div id="goalProgress" class="goal-progress"></div>
+
+      <nav id="mainNav" class="nav-grid" aria-label="Primary">
+        <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+        <button class="nav-btn" data-page="paychecks">Paychecks</button>
+        <button class="nav-btn" data-page="bills">Bills</button>
+        <button class="nav-btn" data-page="monthly">Monthly</button>
+        <button class="nav-btn" data-page="debts">Debts</button>
+        <button class="nav-btn" data-page="goals">Goals</button>
+        <button class="nav-btn" data-page="reports">Reports</button>
+        <button class="nav-btn" data-page="settings">Settings</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div id="storageStatus" class="status-line">Local storage ready</div>
       </div>
-    </section>
+    </aside>
 
-    <section id="bills" class="tab-panel">
-      <div class="panel">
-        <div class="panel-header"><h2>Bills</h2><button id="addBillBtn" class="primary">Add Bill</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Priority</th><th>Bill</th><th>Due Day</th><th>Amount</th><th>Split?</th><th>Active</th><th>Paid</th><th></th></tr></thead><tbody id="billsBody"></tbody></table></div>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="todayLabel"></p>
+        </div>
+        <div class="topbar-actions">
+          <button id="quickAddBill" class="btn btn-secondary">Add Bill</button>
+          <button id="quickAddPaycheck" class="btn btn-primary">Add Paycheck</button>
+        </div>
+      </header>
+
+      <section id="dashboard" class="page active">
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span>Next Paycheck</span>
+            <strong id="metricNextPaycheck">$0.00</strong>
+            <small id="metricNextPaycheckDate">No paycheck scheduled</small>
+          </article>
+          <article class="metric-card">
+            <span>Upcoming Bills</span>
+            <strong id="metricUpcomingBills">$0.00</strong>
+            <small id="metricUpcomingBillsCount">0 unpaid bills</small>
+          </article>
+          <article class="metric-card">
+            <span>Available After Bills</span>
+            <strong id="metricAvailable">$0.00</strong>
+            <small>Includes required buffers</small>
+          </article>
+          <article class="metric-card">
+            <span>Total Debt</span>
+            <strong id="metricDebt">$0.00</strong>
+            <small id="metricDebtCount">0 active debts</small>
+          </article>
+        </div>
+
+        <div class="panel-grid two-col">
+          <section class="panel">
+            <div class="panel-header">
+              <h3>Upcoming Paycheck Plan</h3>
+            </div>
+            <div id="dashboardPaycheckPlan" class="stack"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h3>Bill Status</h3>
+            </div>
+            <div id="dashboardBillStatus" class="stack"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h3>Waterfall Summary</h3>
+          </div>
+          <div id="waterfallSummary" class="waterfall"></div>
+        </section>
+      </section>
+
+      <section id="paychecks" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Paycheck Schedule</h3>
+            <button class="btn btn-primary" data-open-modal="paycheckModal">Add Paycheck</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Base</th>
+                  <th>Extra</th>
+                  <th>Total</th>
+                  <th>Assigned Bills</th>
+                  <th>Remaining</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="paycheckTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h3>Selected Paycheck Breakdown</h3>
+          </div>
+          <div id="selectedPaycheckBreakdown" class="empty-state">Select a paycheck to see its breakdown.</div>
+        </section>
+      </section>
+
+      <section id="bills" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Bill Management</h3>
+            <div class="inline-actions">
+              <select id="billFilter">
+                <option value="all">All bills</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+              </select>
+              <button class="btn btn-primary" data-open-modal="billModal">Add Bill</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Bill</th>
+                  <th>Amount</th>
+                  <th>Due</th>
+                  <th>Priority</th>
+                  <th>Assigned Check</th>
+                  <th>Paid</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="billTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="monthly" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Monthly Plan</h3>
+            <input id="monthPicker" type="month" />
+          </div>
+          <div id="monthlySummary" class="metric-grid compact"></div>
+          <div id="monthlyPaycheckCards" class="card-list"></div>
+        </div>
+      </section>
+
+      <section id="debts" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Debt Tracker</h3>
+            <button class="btn btn-primary" data-open-modal="debtModal">Add Debt</button>
+          </div>
+          <div id="debtCards" class="card-list"></div>
+        </div>
+      </section>
+
+      <section id="goals" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Savings Goals</h3>
+            <button class="btn btn-primary" data-open-modal="goalModal">Add Goal</button>
+          </div>
+          <div id="goalCards" class="card-list"></div>
+        </div>
+      </section>
+
+      <section id="reports" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Reports</h3>
+            <button id="exportCsvBtn" class="btn btn-secondary">Export Bills CSV</button>
+          </div>
+          <div id="reportCards" class="metric-grid compact"></div>
+          <div class="report-bars">
+            <div>
+              <h4>Bill Categories</h4>
+              <div id="categoryReport"></div>
+            </div>
+            <div>
+              <h4>Priority Allocation</h4>
+              <div id="priorityReport"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings" class="page">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Budget Rules</h3>
+          </div>
+          <form id="settingsForm" class="form-grid">
+            <label>
+              Minimum savings buffer per paycheck
+              <input id="settingsSavingsBuffer" type="number" min="0" step="0.01" />
+            </label>
+            <label>
+              Required leftover cash per paycheck
+              <input id="settingsLeftoverCash" type="number" min="0" step="0.01" />
+            </label>
+            <label>
+              Default pay frequency
+              <select id="settingsPayFrequency">
+                <option value="biweekly">Biweekly</option>
+                <option value="weekly">Weekly</option>
+                <option value="semimonthly">Twice monthly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            <label class="checkbox-label">
+              <input id="settingsRentAdvance" type="checkbox" />
+              Plan rent one month in advance
+            </label>
+            <div class="form-actions full-width">
+              <button class="btn btn-primary" type="submit">Save Settings</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Data Management</h3>
+          </div>
+          <div class="button-row">
+            <button id="exportJsonBtn" class="btn btn-secondary">Export Backup</button>
+            <label class="btn btn-secondary file-label">
+              Import Backup
+              <input id="importJsonInput" type="file" accept="application/json" hidden />
+            </label>
+            <button id="loadDemoBtn" class="btn btn-secondary">Load Demo Data</button>
+            <button id="resetDataBtn" class="btn btn-danger">Reset All Data</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="billModal" class="modal">
+    <form method="dialog" id="billForm">
+      <div class="modal-header">
+        <h3 id="billModalTitle">Add Bill</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
       </div>
-    </section>
-
-    <section id="paychecks" class="tab-panel">
-      <div class="panel">
-        <div class="panel-header"><h2>Paychecks</h2><button id="addPaycheckBtn" class="primary">Add Paycheck</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Date</th><th>Base Amount</th><th>Extra Income</th><th>Total</th><th>Notes</th><th></th></tr></thead><tbody id="paychecksBody"></tbody></table></div>
+      <input type="hidden" id="billId" />
+      <div class="form-grid">
+        <label>Bill name<input id="billName" required /></label>
+        <label>Amount<input id="billAmount" type="number" min="0" step="0.01" required /></label>
+        <label>Due date<input id="billDueDate" type="date" required /></label>
+        <label>Category<input id="billCategory" placeholder="Housing, Debt, Utility..." /></label>
+        <label>Priority
+          <select id="billPriority">
+            <option value="1">1 - Fixed date / highest</option>
+            <option value="2">2 - Fixed flexible</option>
+            <option value="3">3 - Goal / adjustable</option>
+          </select>
+        </label>
+        <label>Assign to paycheck<select id="billPaycheckId"></select></label>
+        <label class="checkbox-label"><input id="billRecurring" type="checkbox" /> Recurring monthly</label>
+        <label class="checkbox-label"><input id="billPaid" type="checkbox" /> Mark paid</label>
       </div>
-    </section>
-
-    <section id="goals" class="tab-panel">
-      <div class="panel">
-        <div class="panel-header"><h2>Financial Goals</h2><button id="addGoalBtn" class="primary">Add Goal</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Priority</th><th>Goal</th><th>Target</th><th>Current</th><th>Monthly Contribution</th><th>Due Date</th><th>Active</th><th></th></tr></thead><tbody id="goalsBody"></tbody></table></div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Bill</button>
       </div>
-    </section>
-
-    <section id="planner" class="tab-panel">
-      <div id="plannerCards" class="planner-grid"></div>
-    </section>
-
-    <section id="settings" class="tab-panel">
-      <div class="panel settings-panel">
-        <div class="panel-header"><h2>Settings</h2></div>
-        <label>Planning Month<input id="planningMonth" type="month" /></label>
-        <label>Pay Frequency<select id="payFrequency"><option>Weekly</option><option>Biweekly</option><option>Semimonthly</option><option>Monthly</option><option>Custom</option></select></label>
-        <label>Leftover Cash Target<input id="leftoverTarget" type="number" min="0" step="0.01" /></label>
-        <label>Minimum Savings Buffer<input id="minimumSavings" type="number" min="0" step="0.01" /></label>
-        <button id="saveSettingsBtn" class="primary">Save Settings</button>
-      </div>
-    </section>
-  </main>
-
-  <dialog id="editDialog">
-    <form method="dialog" id="editForm">
-      <h2 id="dialogTitle">Edit</h2>
-      <div id="dialogFields"></div>
-      <div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button id="dialogSave" value="default" class="primary">Save</button></div>
     </form>
   </dialog>
 
+  <dialog id="paycheckModal" class="modal">
+    <form method="dialog" id="paycheckForm">
+      <div class="modal-header">
+        <h3 id="paycheckModalTitle">Add Paycheck</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <input type="hidden" id="paycheckId" />
+      <div class="form-grid">
+        <label>Pay date<input id="paycheckDate" type="date" required /></label>
+        <label>Base amount<input id="paycheckAmount" type="number" min="0" step="0.01" required /></label>
+        <label>Extra / reimbursement<input id="paycheckExtra" type="number" min="0" step="0.01" value="0" /></label>
+        <label>Notes<input id="paycheckNotes" /></label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Paycheck</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="debtModal" class="modal">
+    <form method="dialog" id="debtForm">
+      <div class="modal-header">
+        <h3>Add Debt</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label>Name<input id="debtName" required /></label>
+        <label>Current balance<input id="debtBalance" type="number" min="0" step="0.01" required /></label>
+        <label>Original balance<input id="debtOriginal" type="number" min="0" step="0.01" /></label>
+        <label>APR %<input id="debtApr" type="number" min="0" step="0.01" /></label>
+        <label>Minimum payment<input id="debtMinimum" type="number" min="0" step="0.01" /></label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Debt</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="goalModal" class="modal">
+    <form method="dialog" id="goalForm">
+      <div class="modal-header">
+        <h3>Add Savings Goal</h3>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label>Name<input id="goalName" required /></label>
+        <label>Target amount<input id="goalTarget" type="number" min="0" step="0.01" required /></label>
+        <label>Current amount<input id="goalCurrent" type="number" min="0" step="0.01" value="0" /></label>
+        <label>Priority
+          <select id="goalPriority">
+            <option value="1">1 - Highest goal priority</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5 - Lowest goal priority</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" value="default">Save Goal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>
 </body>
 </html>
